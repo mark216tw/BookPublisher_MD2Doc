@@ -13,22 +13,38 @@ const INITIAL_CONTENT = `# 技術書稿排版範例樣式表
 
 對於書籍介面的描述，我們設計了特殊的括號樣式：點擊 【確定】 按鈕後即可完成操作。這在 Word 匯出後也會保持加粗與特殊視覺感。
 
+---
+
 ### 1.1 列表測試
+
 - 第一項重點內容
 - 第二項重點內容，包含 \`行內程式\`
 - 第三項內容，測試自動換行的對齊效果
 
+## 2. 特殊文字樣式展示
+
+本工具支援多種專業出版需要的文字格式，請參考以下範例：
+
+- **粗體 (Bold)**：用於強調關鍵字，例如 **Vibe Coding**。
+- *斜體 (Italic)*：用於 *專有名詞定義* 或 *英文術語*。匯出 Word 時會呈現深藍色斜體。
+- <u>底線 (Underline)</u>：用於 <u>超連結文字</u> 或需要特別畫線的地方。
+- UI 按鈕：請點擊 【設定】 > 【進階選項】 進行調整。
+- 快捷鍵：按下 [Ctrl] + [S] 可以儲存檔案，或使用 [Cmd] + [P] 列印。
+- 書籍/專案：參考『Clean Code』一書中的概念，或是『BookPublisher』專案。
+
 ---
 
-## 2. 角色對話框展示 (左右對齊效果)
+## 3. 角色對話框展示 (左右對齊效果)
 
 User：嘿 Gemini，請幫我示範一下這個 APP 的對話框排版效果。
 
 AI：沒問題！在這個系統中，User 的對話會靠右側顯示，並使用虛線邊框；而 AI 的回覆則會靠左側顯示，搭配點狀邊框與淺灰色背景。這種排版非常適合技術書籍中的「情境模擬」或「問答環節」。
 
+User：原來阿！
+
 ---
 
-## 3. 程式碼區塊樣式
+## 4. 程式碼區塊樣式
 
 下面展示的是標準的程式碼區塊，匯出至 Word 時會自動加上細邊框、淺灰背景，並使用等寬字體 (Consolas)。
 
@@ -48,7 +64,7 @@ const myBook: BookConfig = {
 
 ---
 
-## 4. 特殊提醒與警告 (Callouts)
+## 5. 特殊提醒與警告 (Callouts)
 
 > [!TIP]
 > **提示 (Tip)**：通常用於分享小撇步或最佳實踐。在 Word 中會以實線邊框標註。
@@ -61,7 +77,7 @@ const myBook: BookConfig = {
 
 ---
 
-## 5. 多層級標題測試
+## 6. 多層級標題測試
 
 ### 5.1 三級標題範例
 這裡是三級標題下的文字，匯出時會自動加上底部的裝飾線或特定的縮排間距。
@@ -86,7 +102,7 @@ const MarkdownEditor: React.FC = () => {
     setIsGenerating(true);
     try {
       const blob = await generateDocx(parsedBlocks);
-      saveAs(blob, "Technical_Manuscript_Template.docx");
+      saveAs(blob, "Professional_Manuscript.docx");
     } catch (error) {
       console.error("Word 轉檔失敗:", error);
       alert("轉檔失敗，請確認內容格式是否正確。");
@@ -104,7 +120,7 @@ const MarkdownEditor: React.FC = () => {
           </div>
           <div>
             <h1 className="text-xl font-black text-slate-900 tracking-tight">BookPublisher <span className="text-slate-400 font-normal">MD2Docx</span></h1>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">核心引擎：Markdown -> Word (v1.0)</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">核心引擎：Markdown -> Word (v2.0)</p>
           </div>
         </div>
         
@@ -164,22 +180,49 @@ const MarkdownEditor: React.FC = () => {
 
 const PreviewBlock: React.FC<{ block: ParsedBlock }> = ({ block }) => {
   const renderRichText = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*|`[^`]+`|【.*?】)/g);
+    // Regex matches: Bold, Italic, Underline, Code, Button, Shortcut, Book
+    const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|<u>.*?<\/u>|`[^`]+`|【.*?】|\[.*?\]|『.*?』)/g);
+    
     return parts.map((part, i) => {
       if (!part) return null;
+      
+      // Bold
       if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i} className="font-bold text-slate-900 border-b-2 border-slate-100">{part.slice(2, -2)}</strong>;
+        return <strong key={i} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
       }
+      // Italic (Standard font, blue color)
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <span key={i} className="italic text-blue-800">{part.slice(1, -1)}</span>;
+      }
+      // Underline
+      if (part.startsWith('<u>') && part.endsWith('</u>')) {
+        return <span key={i} className="underline decoration-blue-500 text-blue-600 decoration-1 underline-offset-2">{part.slice(3, -4)}</span>;
+      }
+      // Inline Code
       if (part.startsWith('`') && part.endsWith('`')) {
-        return <code key={i} className="bg-slate-100 px-1.5 py-0.5 rounded text-[0.9em] font-mono text-indigo-700 border border-slate-200">{part.slice(1, -1)}</code>;
+        return <code key={i} className="bg-slate-100 px-1.5 py-0.5 rounded text-[0.9em] font-mono text-slate-700 border border-slate-200">{part.slice(1, -1)}</code>;
       }
+      // UI Button
       if (part.startsWith('【') && part.endsWith('】')) {
         return (
-          <span key={i} className="inline-flex items-center px-1.5 py-0.5 mx-1 text-[0.7rem] font-black border-2 border-slate-900 rounded bg-slate-50 shadow-[2px_2px_0_0_#000]">
-            {part.slice(1, -1)}
+          <span key={i} className="inline-block px-1.5 py-0.5 mx-0.5 text-[0.8rem] font-bold bg-slate-200 border border-slate-400 rounded text-slate-800 shadow-[1px_1px_0_0_#94a3b8]">
+            {part}
           </span>
         );
       }
+      // Shortcut (Standard font, boxed)
+      if (part.startsWith('[') && part.endsWith(']')) {
+        return (
+          <span key={i} className="inline-block px-1 mx-0.5 text-[0.8rem] bg-white border border-slate-300 rounded shadow-sm text-slate-600">
+            {part}
+          </span>
+        );
+      }
+      // Book/Project
+      if (part.startsWith('『') && part.endsWith('』')) {
+        return <span key={i} className="font-bold text-slate-900">{part}</span>;
+      }
+      
       return <span key={i}>{part}</span>;
     });
   };
@@ -200,8 +243,8 @@ const PreviewBlock: React.FC<{ block: ParsedBlock }> = ({ block }) => {
     case BlockType.CHAT_USER:
       return (
         <div className="flex justify-end my-12 pl-20">
-          <div className="w-full border-2 border-dashed border-slate-900 p-6 bg-white relative">
-            <div className="absolute -top-3 left-4 bg-white px-2 text-[10px] font-black tracking-widest text-indigo-600">USER</div>
+          <div className="max-w-[85%] border-2 border-dashed border-slate-900 p-6 bg-white relative text-right">
+            <div className="absolute -top-3 left-4 bg-white px-2 text-[10px] font-black tracking-widest text-indigo-600 border border-slate-200">USER</div>
             <div className="whitespace-pre-wrap leading-[1.8]">{renderRichText(block.content)}</div>
           </div>
         </div>
@@ -209,37 +252,37 @@ const PreviewBlock: React.FC<{ block: ParsedBlock }> = ({ block }) => {
     case BlockType.CHAT_AI:
       return (
         <div className="flex justify-start my-12 pr-20">
-          <div className="w-full border-2 border-dotted border-slate-900 p-6 bg-slate-50 relative">
-            <div className="absolute -top-3 right-4 bg-slate-50 px-2 text-[10px] font-black tracking-widest text-indigo-600">AI RESPONSE</div>
+          <div className="max-w-[85%] border-2 border-dotted border-slate-900 p-6 bg-slate-100 relative text-left">
+            <div className="absolute -top-3 right-4 bg-slate-100 px-2 text-[10px] font-black tracking-widest text-indigo-600 border border-slate-200">AI</div>
             <div className="whitespace-pre-wrap leading-[1.8] text-slate-800">{renderRichText(block.content)}</div>
           </div>
         </div>
       );
     case BlockType.CALLOUT_TIP:
       return (
-        <div className="my-14 p-8 bg-slate-50 border-l-[12px] border-slate-500 shadow-sm">
-          <div className="font-black text-[10px] mb-4 tracking-[0.3em] uppercase opacity-40">Section Tip</div>
-          <div className="whitespace-pre-wrap leading-[1.8] text-slate-800">{renderRichText(block.content)}</div>
+        <div className="my-14 p-6 bg-slate-50 border border-slate-400 shadow-sm relative">
+           <div className="absolute -top-3 left-4 bg-slate-50 px-2 text-xs font-bold text-slate-600 border border-slate-400">TIP</div>
+           <div className="whitespace-pre-wrap leading-[1.8] text-slate-800">{renderRichText(block.content)}</div>
         </div>
       );
     case BlockType.CALLOUT_WARNING:
       return (
-        <div className="my-14 p-8 bg-slate-100 border-l-[12px] border-black shadow-sm">
-          <div className="font-black text-[10px] mb-4 tracking-[0.3em] uppercase opacity-40">Attention / Warning</div>
-          <div className="whitespace-pre-wrap leading-[1.8] text-slate-800 font-bold">{renderRichText(block.content)}</div>
+        <div className="my-14 p-6 bg-slate-50 border-2 border-black shadow-md relative">
+           <div className="absolute -top-3 left-4 bg-white px-2 text-xs font-black text-black border-2 border-black">WARNING</div>
+           <div className="whitespace-pre-wrap leading-[1.8] text-slate-900 font-bold">{renderRichText(block.content)}</div>
         </div>
       );
     case BlockType.CALLOUT_NOTE:
       return (
-        <div className="my-14 p-8 bg-white border-l-[12px] border-dashed border-slate-300 shadow-sm border-y border-r">
-          <div className="font-black text-[10px] mb-4 tracking-[0.3em] uppercase opacity-40">Note</div>
-          <div className="whitespace-pre-wrap leading-[1.8] text-slate-800 italic">{renderRichText(block.content)}</div>
+        <div className="my-14 p-6 bg-white border border-dashed border-slate-400 shadow-sm relative">
+           <div className="absolute -top-3 left-4 bg-white px-2 text-xs font-bold text-slate-500 border border-dashed border-slate-400">NOTE</div>
+           <div className="whitespace-pre-wrap leading-[1.8] text-slate-800 italic">{renderRichText(block.content)}</div>
         </div>
       );
     case BlockType.BULLET_LIST:
       return <li className="ml-8 list-none relative mb-4 pl-4 leading-[1.8] before:content-[''] before:absolute before:left-0 before:top-[0.7em] before:w-2 before:h-2 before:bg-slate-400 before:rounded-full">{renderRichText(block.content)}</li>;
     case BlockType.HORIZONTAL_RULE:
-      return <hr className="my-8 border-t-2 border-slate-200" />;
+      return <hr className="my-8 border-t-2 border-slate-900" />;
     default:
       return <p className="mb-8 leading-[2.1] text-justify text-slate-800 tracking-tight">{renderRichText(block.content)}</p>;
   }

@@ -16,14 +16,21 @@
 您可以從這裡查看匯出的 Word 文件效果：
 - [📥 下載範例文件 (範例Word.docx)](samples/範例Word.docx)
 
+
 <div align="center">
-  <img src="docs/images/1.jpg" width="32%" alt="Cover & Header" />
-  <img src="docs/images/2.jpg" width="32%" alt="Chat Dialogues" />
-  <img src="docs/images/3.jpg" width="32%" alt="Callouts & Styles" />
+  <img src="docs/images/1.jpg" width="48%" alt="Cover & Header" />
+  <img src="docs/images/2.jpg" width="48%" alt="Chat Dialogues" />
   <br/>
+  <img src="docs/images/3.jpg" width="48%" alt="Callouts & Styles" />
   <img src="docs/images/4.jpg" width="48%" alt="Code Blocks" />
+  <br/>
   <img src="docs/images/5.jpg" width="48%" alt="Tables & Lists" />
+  <img src="docs/images/6.jpg" width="48%" alt="Tables & Lists" />
+  <br/>
+  <img src="docs/images/7.jpg" width="48%" alt="Tables & Lists" />
+  <img src="docs/images/8.jpg" width="48%" alt="Tables & Lists" />
 </div>
+
 *(實際 Word 輸出效果截圖)*
 
 ## ✨ 核心特色 (Features)
@@ -40,6 +47,10 @@
     - **自動行號**：預設顯示行號，並與 IDE 風格保持一致（單行間距）。
     - **語言標籤**：自動在區塊右上方顯示語言名稱。
     - **靈活控制**：支援 `js:ln` (強制顯示) 或 `js:no-ln` (隱藏行號) 語法。
+
+- **📈 Mermaid 圖表支援 (Mermaid Charts)**
+    - 支援 `mermaid` 語法繪製流程圖、時序圖等。
+    - **自動轉圖**：網頁端即時預覽 SVG，匯出 Word 時自動轉換為高解析度 PNG 圖片。
 
 - **🔗 智慧連結 (Smart Links)**
     - **自動 QR Code 生成**：Markdown 連結 `[文字](URL)` 在轉檔後會自動在文字旁生成 QR Code。
@@ -112,6 +123,7 @@
 | **標準標題**   | ✅ 完全支援 | `# H1` 到 `### H3` (對應 Word 標題層級)                  |
 | **段落文本**   | ✅ 完全支援 | 一般文字與換行處理                                       |
 | **程式碼區塊** | ✅ 完全支援 | ```lang:ln/no-ln``` (支援行號切換與語言標籤)             |
+| **Mermaid**    | 🌟 特色支援 | ```mermaid``` 區塊 (自動轉為 Word 圖片)                  |
 | **無序清單**   | ✅ 基本支援 | `-` 或 `*` 開頭 (暫不支援多層級巢狀)                     |
 | **有序清單**   | ✅ 基本支援 | `1.` 開頭 (自動轉為 Word 編號列表)                       |
 | **表格**       | ✅ 基本支援 | 標準 Markdown 表格 (不支援儲存格內換行)                  |
@@ -126,6 +138,18 @@
 > 由於目前的解析器採用逐行掃描技術，對於**複雜的巢狀結構**（例如：在清單中插入表格，或在引用區塊中插入多個程式碼區塊）支援度較弱。若您的稿件包含大量複雜巢狀邏輯，建議在產出後於 Word 中做微調。未來我們計畫引入 AST (抽象語法樹) 以解決此問題。
 
 ## 🚀 快速開始 (Getting Started)
+
+## ❓ 常見問題 (Known Issues)
+
+### 關於 Mermaid 圖表匯出
+當您開啟包含 Mermaid 圖表的 Word 文件時，Word 可能會跳出以下安全提示：
+
+![Word Alert](docs/images/WordAlert.jpg)
+> 「Word 找到文件中無法讀取的內容。你要復原本文件的內容嗎?」
+> 「是 (Yes)」
+
+這是由於 Mermaid 圖表在轉換為 Word 圖片格式時的編碼相容性問題。
+✅ **請放心點擊「是 (Yes)」**，Word 會自動修復並正確顯示所有圖表內容。這不會影響文件的安全性或內容完整性。
 
 ## 🎨 客製化指南 (Customization)
 

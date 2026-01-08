@@ -13,71 +13,75 @@ marked.use({
   gfm: true,
 });
 
-export const parseMarkdownWithAST = (markdown: string): ParsedBlock[] => {
+export const parseMarkdownWithAST = (markdown: string, lineOffset: number = 0, charOffset: number = 0): ParsedBlock[] => {
   const tokens = marked.lexer(markdown);
   const blocks: ParsedBlock[] = [];
+  
+  let currentLine = lineOffset;
+  let currentIndex = charOffset;
 
-  const processToken = (token: any) => {
+  const processToken = (token: any, blockStartLine: number, blockStartIndex: number) => {
+    // Helper to add block with source info
+    const addBlock = (block: ParsedBlock) => {
+        blocks.push({
+            ...block,
+            sourceLine: blockStartLine,
+            startIndex: blockStartIndex,
+            endIndex: blockStartIndex + token.raw.length
+        });
+    };
+
     switch (token.type) {
       case 'heading':
         const headingType = 
           token.depth === 1 ? BlockType.HEADING_1 :
           token.depth === 2 ? BlockType.HEADING_2 :
           BlockType.HEADING_3;
-        blocks.push({
+        addBlock({
           type: headingType,
           content: token.text
         });
         break;
 
       case 'paragraph':
-        // Check for special syntax in paragraph (Chat, Callouts, TOC)
-        // Note: marked might parse blockquotes separately, but we handle them below.
-        // Here we handle inline patterns that marked parses as paragraphs.
-        
         const text = token.text;
 
         // 1. TOC
         if (text.trim() === '[TOC]' || text.trim() === '[toc]') {
-          blocks.push({ type: BlockType.TOC, content: '' }); // Content populated later or handled by generator
+          addBlock({ type: BlockType.TOC, content: '' });
           break;
         }
 
-        // 2. Chat Dialogues (Custom Syntax)
-        // Pattern Center: :":
+        // 2. Chat Dialogues
         const centerMatch = text.match(/^(.+?)\s*:\":\s*(.*)$/);
         if (centerMatch) {
-            blocks.push({ type: BlockType.CHAT_CUSTOM, role: centerMatch[1].trim(), content: centerMatch[2].trim(), alignment: 'center' });
+            addBlock({ type: BlockType.CHAT_CUSTOM, role: centerMatch[1].trim(), content: centerMatch[2].trim(), alignment: 'center' });
             break;
         }
-        // Pattern Right: ::"
         const rightMatch = text.match(/^(.+?)\s*::\"\s*(.*)$/);
         if (rightMatch) {
-            blocks.push({ type: BlockType.CHAT_CUSTOM, role: rightMatch[1].trim(), content: rightMatch[2].trim(), alignment: 'right' });
+            addBlock({ type: BlockType.CHAT_CUSTOM, role: rightMatch[1].trim(), content: rightMatch[2].trim(), alignment: 'right' });
             break;
         }
-        // Pattern Left: "::
         const leftMatch = text.match(/^(.+?)\s*\"(?:::)\s*(.*)$/);
         if (leftMatch) {
-            blocks.push({ type: BlockType.CHAT_CUSTOM, role: leftMatch[1].trim(), content: leftMatch[2].trim(), alignment: 'left' });
+            addBlock({ type: BlockType.CHAT_CUSTOM, role: leftMatch[1].trim(), content: leftMatch[2].trim(), alignment: 'left' });
             break;
         }
 
-        blocks.push({
+        addBlock({
           type: BlockType.PARAGRAPH,
-          content: token.text // Keep raw text with inline markdown for now, generator handles inline styles
+          content: token.text
         });
         break;
 
       case 'code':
-        // Check for Mermaid
         if (token.lang === 'mermaid') {
-          blocks.push({
+          addBlock({
             type: BlockType.MERMAID,
             content: token.text
           });
         } else {
-          // Check for line numbers syntax in lang (e.g., "ts:ln")
           let language = token.lang || '';
           let showLineNumbers: boolean | undefined = undefined;
 
@@ -92,7 +96,7 @@ export const parseMarkdownWithAST = (markdown: string): ParsedBlock[] => {
             }
           }
 
-          blocks.push({
+          addBlock({
             type: BlockType.CODE_BLOCK,
             content: token.text,
             metadata: {
@@ -104,75 +108,46 @@ export const parseMarkdownWithAST = (markdown: string): ParsedBlock[] => {
         break;
 
       case 'blockquote':
-        // Check for Callouts within blockquote
-        // marked parses blockquote content as nested tokens
-        // We need to reconstruct the raw text or analyze the first paragraph to detect callouts.
-        
-        // Simplified approach: Reconstruct text from tokens
         const rawBlockquote = token.tokens.map((t: any) => t.raw).join('').trim();
-        
-        let calloutType = BlockType.QUOTE_BLOCK; // Default to standard quote
+        let calloutType = BlockType.QUOTE_BLOCK;
         let content = rawBlockquote;
 
-        // Detect Callout headers
-        // Note: marked might strip the '>' characters in 'text' property of child tokens, but 'raw' has them.
-        // We look at the first token to see if it starts with [!TIP] etc.
-        
         const firstToken = token.tokens[0];
         if (firstToken && firstToken.type === 'paragraph') {
            const firstLine = firstToken.text.trim();
            if (firstLine.startsWith('[!TIP]')) {
              calloutType = BlockType.CALLOUT_TIP;
-             content = rawBlockquote.replace(/^\\[!TIP\\]\s*/m, '').trim(); // Very rough removal, needs refinement for multi-paragraph
-             // Better: iterate tokens and strip the header from the first paragraph
-             const restText = token.tokens.map((t: any, i: number) => {
-                if (i === 0) return t.text.replace('[!TIP]', '').trim();
-                return t.text; // Simplification: we lose some structure here, might need to recurse
-             }).join('\n\n');
-             content = restText;
+             content = rawBlockquote.replace(/^\\[!TIP\\]\s*/m, '').trim(); 
+             // Simplified stripping for now, matching previous logic roughly
+             // Re-implementing specific stripping if needed
+             const lines = rawBlockquote.split('\n');
+             if (lines[0].includes('[!TIP]')) lines[0] = lines[0].replace('[!TIP]', '').trim();
+             content = lines.join('\n');
+
            } else if (firstLine.startsWith('[!WARNING]')) {
              calloutType = BlockType.CALLOUT_WARNING;
-             const restText = token.tokens.map((t: any, i: number) => {
-                if (i === 0) return t.text.replace('[!WARNING]', '').trim();
-                return t.text;
-             }).join('\n\n');
-             content = restText;
+             const lines = rawBlockquote.split('\n');
+             if (lines[0].includes('[!WARNING]')) lines[0] = lines[0].replace('[!WARNING]', '').trim();
+             content = lines.join('\n');
+
            } else if (firstLine.startsWith('[!NOTE]')) {
              calloutType = BlockType.CALLOUT_NOTE;
-             const restText = token.tokens.map((t: any, i: number) => {
-                if (i === 0) return t.text.replace('[!NOTE]', '').trim();
-                return t.text;
-             }).join('\n\n');
-             content = restText;
+             const lines = rawBlockquote.split('\n');
+             if (lines[0].includes('[!NOTE]')) lines[0] = lines[0].replace('[!NOTE]', '').trim();
+             content = lines.join('\n');
            }
         }
         
-        // If it's a standard quote, we might want to handle it differently
-        // For now, mapping QUOTE_BLOCK to CALLOUT_NOTE style or just paragraph is common
-        if (calloutType === BlockType.QUOTE_BLOCK) {
-             const quoteText = token.tokens.map((t: any) => t.text).join('\n\n');
-             blocks.push({
-                 type: BlockType.QUOTE_BLOCK,
-                 content: quoteText
-             });
-        } else {
-             blocks.push({
-                 type: calloutType,
-                 content: content
-             });
-        }
+        addBlock({
+             type: calloutType,
+             content: content
+        });
         break;
 
       case 'list':
-        // marked handles nested lists in 'items'.
-        // Current docx generator expects simple string content for lists.
-        // Future optimization: Pass structured items to generator for nested lists support.
-        // For now, flatten to legacy format for compatibility.
-        
         token.items.forEach((item: any) => {
-          // Check if it's task list (optional)
           const cleanText = item.text.replace(/^\\[[ x]\\]\s*/, ''); 
-          blocks.push({
+          addBlock({
             type: token.ordered ? BlockType.NUMBERED_LIST : BlockType.BULLET_LIST,
             content: cleanText 
           });
@@ -184,19 +159,18 @@ export const parseMarkdownWithAST = (markdown: string): ParsedBlock[] => {
         const rows = token.rows.map((row: any) => row.map((cell: any) => cell.text));
         const allRows = [headers, ...rows];
         
-        blocks.push({
+        addBlock({
             type: BlockType.TABLE,
-            content: '', // Raw content not strictly needed for generator
+            content: '',
             tableRows: allRows
         });
         break;
 
       case 'hr':
-        blocks.push({ type: BlockType.HORIZONTAL_RULE, content: '' });
+        addBlock({ type: BlockType.HORIZONTAL_RULE, content: '' });
         break;
         
       case 'space':
-        // Ignore loose spaces
         break;
 
       default:
@@ -205,6 +179,21 @@ export const parseMarkdownWithAST = (markdown: string): ParsedBlock[] => {
     }
   };
 
-  tokens.forEach(processToken);
+  tokens.forEach(token => {
+     const raw = token.raw;
+     const newlines = (raw.match(/\n/g) || []).length;
+     const len = raw.length;
+     
+     const blockStartLine = currentLine;
+     const blockStartIndex = currentIndex;
+     
+     currentLine += newlines;
+     currentIndex += len;
+     
+     if (token.type === 'space') return;
+     
+     processToken(token, blockStartLine, blockStartIndex);
+  });
+
   return blocks;
 };
